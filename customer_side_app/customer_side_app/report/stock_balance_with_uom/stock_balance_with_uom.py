@@ -62,13 +62,13 @@ def get_data(filters):
 
             if "Kg" in item_details and stock_value_difference:
                 conversion_factor = item_details.get("Kg")
-                data_dict["kg"] = conversion_factor * stock_value_difference
+                data_dict["kg"] =  stock_value_difference / conversion_factor 
             else:
                 data_dict["kg"] = 0.0
 
             if "Liter" in item_details and stock_value_difference:
                 conversion_factor = item_details.get("Liter")
-                data_dict["liter"] = conversion_factor * stock_value_difference
+                data_dict["liter"] =   stock_value_difference / conversion_factor
             else:
                 data_dict["liter"] = 0.0
         else:
@@ -88,13 +88,13 @@ def get_item_and_item_group(item_code):
     unit_of_measure = frappe.get_all(
         "UOM Conversion Detail",
         filters={"parent": item_code, "parenttype": "Item"},
-        fields=["uom", "factor"],
+        fields=["uom", "conversion_factor"],
     )
 
     uom_factor_dict = {"item_name": item_name, "item_group": item_group}
     for uom_factor in unit_of_measure:
         uom = uom_factor["uom"]
-        factor = uom_factor["factor"]
+        factor = uom_factor["conversion_factor"]
         uom_factor_dict[uom] = factor
 
     return uom_factor_dict
