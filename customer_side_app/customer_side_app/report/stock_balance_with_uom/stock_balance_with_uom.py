@@ -24,13 +24,13 @@ def get_stock_value(filters):
 				item_code,
 				warehouse,
 				stock_uom,
-				qty_after_transaction
+				qty_after_transaction 
 			FROM
 				`tabStock Ledger Entry`
 			WHERE
 				posting_date BETWEEN '{0}' AND '{1}' AND warehouse = '{2}'
 			GROUP BY
-				item_code, warehouse
+				item_code   
 			""".format(from_date , to_date, warehouse),
 			as_dict=1,
 		)
