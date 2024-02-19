@@ -5,14 +5,6 @@
 frappe.query_reports["Stock Movement Report"] = {
 	"filters": [
 		{
-			"fieldname":"item_code",
-			"label": __("Item"),
-			"fieldtype": "Link",
-			"width": "80",
-			"reqd": 1,
-			"options": "Item"
-		},
-		{
 			"fieldname":"from_date",
 			"label": __("From Date"),
 			"fieldtype": "Date",
