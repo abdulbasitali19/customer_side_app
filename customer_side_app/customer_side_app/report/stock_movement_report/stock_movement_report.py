@@ -24,32 +24,34 @@ def get_data(filters):
             stock_reconcile = frappe.get_all(
                 "Stock Reconciliation Item",
                 filters={"parent": item, "parenttype": "Stock Reconciliation"},
-                fields=["name"]
+                fields=["name", "current_qty", "qty"]
             )
 
             if stock_reconcile:
                 data_dict["item_code"] = item
+                data_dict["theoratical"] = stock_reconcile.get("current_qty") if stock_reconcile.get("current_qty") else 0
+                data_dict["actual"] = stock_reconcile.get("qty") if stock_reconcile.get("qty") else 0
 
                 uom = frappe.get_all(
                     "Uoms",
                     filters={"parent": item, "parenttype": "Item"},
                     fields=["uom"]
                 )
-                data_dict["uom"] = uom if uom else None
+                data_dict["uom"] = uom if uom else ""
 
                 purchase_qty = frappe.get_all(
                     "Purchase Invoice Items",
                     filters={"parent": item, "parenttype": "Purchase Invoice", "posting_date": ["between", (from_date, to_date)]},
                     fields=["qty", "uom"]
                 )
-                data_dict["purchase"] = sum(purchase_qty)
+                data_dict["purchase"] = sum(purchase_qty) if purchase_qty else 0
 
                 sales_qty = frappe.get_all(
                     "Sales Invoice Items",
                     filters={"parent": item, "parenttype": "Sales Invoice", "posting_date": ["between", (from_date, to_date)]},
                     fields=["qty"]
                 )
-                data_dict["sales"] = sum(sales_qty)
+                data_dict["sales"] = sum(sales_qty) if sales_qty else 0
 
                 transfer_qty = frappe.get_all(
                     "Stock Entry Detail",
@@ -61,7 +63,7 @@ def get_data(filters):
                     },
                     fields=["qty"]
                 )
-                data_dict["transfer"] = sum(transfer_qty)
+                data_dict["transfer"] = sum(transfer_qty) if transfer_qty else 0
 
                 manufacturing_qty = frappe.get_all(
                     "Stock Entry Detail",
@@ -73,7 +75,7 @@ def get_data(filters):
                     },
                     fields=["qty"]
                 )
-                data_dict["manufacturing"] = sum(manufacturing_qty)
+                data_dict["manufacture"] = sum(manufacturing_qty) if manufacturing_qty else 0
 
                 waste_qty = frappe.get_all(
                     "Stock Entry Detail",
@@ -85,15 +87,14 @@ def get_data(filters):
                     },
                     fields=["qty"]
                 )
-                data_dict["waste"] = sum(waste_qty)
+                data_dict["waste"] = sum(waste_qty) if waste_qty else 0
 
                 opening = frappe.db.get_value("Stock Ledger Entry", item, "actual_qty")
-                data_dict["opening"] = sum(opening)
+                data_dict["opening"] = opening if opening else 0
 
                 data.append(data_dict)
 
         return data
-
 
 
 def get_columns():
@@ -108,8 +109,7 @@ def get_columns():
         {
             "label": _("UOM"),
             "fieldname": "uom",
-            "fieldtype": "Link",
-            "options": "UOM",
+            "fieldtype": "Data",
             "width": 100,
         },
         {
@@ -149,7 +149,7 @@ def get_columns():
             "width": 120,
         },
         {
-            "label": _("Theoritical"),
+            "label": _("Theoretical"),
             "fieldname": "theoratical",
             "fieldtype": "Data",
             "width": 120,
