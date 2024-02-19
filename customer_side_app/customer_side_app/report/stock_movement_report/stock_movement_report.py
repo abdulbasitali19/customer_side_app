@@ -32,7 +32,13 @@ def get_data(filters):
                 data_dict["theoratical"] = stock_reconcile[0].get("current_qty") if stock_reconcile[0].get("current_qty") else 0
                 data_dict["actual"] = stock_reconcile[0].get("qty") if stock_reconcile[0].get("qty")else 0
 
-                data_dict["uom"] = "uom"  # Replace this with the appropriate SQL query
+
+                uom = frappe.db.sql(
+                    """SELECT  uom.uom as uom
+                       FROM `tabItem` as item inner join `tabUOM Conversion Detail` as uom on item.name = uom.parent
+                       WHERE item.item_code = '{0}'""".format(item),as_dict = 1
+                )
+                data_dict["uom"] = uom[0].get("uom") # Replace this with the appropriate SQL query
 
                 purchase_qty = frappe.db.sql(
                     """SELECT SUM(sit.qty) as purchase_qty
