@@ -23,9 +23,10 @@ def get_data(filters):
         for item in item_list:
             data_dict = {}
             stock_reconcile = frappe.db.sql(
-                """SELECT sri.name, sri.current_qty as current_qty, sri.qty as qty
-                   FROM `tabStock Reconciliation Item` AS sri
-                   WHERE sri.item_code = '{0}'""".format(
+                """SELECT sr.name, sri.current_qty as current_qty, sri.qty as qty
+                   FROM `tabStock Reconciliation` as sr INNER JOIN  `tabStock Reconciliation Item` AS sri
+                   on sr.name = sri.parent
+                   WHERE sr.docstatus = 1 AND sri.item_code = '{0}'""".format(
                     item
                 ),
                 as_dict=1,
@@ -73,7 +74,7 @@ def get_data(filters):
                     """SELECT SUM(sit.qty) as purchase_qty
                        FROM `tabPurchase Invoice` AS pi
                        INNER JOIN `tabPurchase Invoice Item` AS sit ON pi.name = sit.parent
-                       WHERE sit.item_code = '{0}'
+                       WHERE sit.item_code = '{0}' AND pi.docstatus = 1
                        AND pi.posting_date BETWEEN '{1}' AND '{2}'""".format(
                         item, from_date, to_date
                     ),
@@ -89,7 +90,7 @@ def get_data(filters):
                     """SELECT SUM(sit.qty) as sales_qty
                        FROM `tabSales Invoice` AS si
                        INNER JOIN `tabSales Invoice Item` AS sit ON si.name = sit.parent
-                       WHERE sit.item_code = '{0}'
+                       WHERE sit.item_code = '{0}' AND si.docstatus = 1
                        AND si.posting_date BETWEEN '{1}' AND '{2}'""".format(
                         item, from_date, to_date
                     ),
@@ -105,7 +106,7 @@ def get_data(filters):
                     """SELECT SUM(sed.qty) as transfer_qty
                        FROM `tabStock Entry` AS se
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
-                       WHERE sed.item_code = '{0}'
+                       WHERE sed.item_code = '{0}' AND se.docstatus = 1
                        AND se.stock_entry_type = 'Material Transfer'
                        AND se.posting_date BETWEEN '{1}' AND '{2}'""".format(
                         item, from_date, to_date
@@ -123,7 +124,7 @@ def get_data(filters):
                        FROM `tabStock Entry` AS se
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
                        WHERE sed.item_code = '{0}'
-                       AND se.stock_entry_type = 'Manufacturing'
+                       AND se.stock_entry_type = 'Manufacture' AND se.docstatus = 1
                        AND se.posting_date BETWEEN '{1}' AND '{2}'""".format(
                         item, from_date, to_date
                     ),
@@ -140,7 +141,7 @@ def get_data(filters):
                        FROM `tabStock Entry` AS se
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
                        WHERE sed.item_code = '{0}'
-                       AND se.stock_entry_type = 'Material Issue'
+                       AND se.stock_entry_type = 'Material Issue' AND se.docstatus = 1
                        AND se.posting_date BETWEEN '{1}' AND '{2}'""".format(
                         item, from_date, to_date
                     ),
@@ -163,32 +164,19 @@ def get_data(filters):
             FROM
                 `tabSales Invoice`
             WHERE
-            docstatus = 1 and posting_date BETWEEN '{1}' AND '{2}'""".format(
-                        item, from_date, to_date
+            docstatus = 1 and posting_date BETWEEN '{0}' AND '{1}'""".format(
+                        from_date, to_date
                     ),
-                    as_dict=1,
-        )
+                    as_dict=1,debug = True)
 
-        # data_dict["item_code"] = "The Total Net Sales is {0}".format(net_sales[0].get("total"))
-        # data.append(data_dict.copy())
-
-        # data_dict["item_code"] = "Theoratical Cost is {0}".format(theoratical_cost)
-        # data.append(data_dict.copy())
-
-        # data_dict["item_code"] = "Theoratical Percentage is {0}".format((theoratical_cost/net_sales[0].get("total"))*100)
-        # data.append(data_dict.copy())
-
-        # data_dict["item_code"] = "Actual Cost is {0}%".format(actual_cost)
-        # data.append(data_dict.copy())
-
-        # data_dict["item_code"] = "Actual Percentage is {0}%".format((actual_cost/net_sales[0].get("total"))*100)
-        # data.append(data_dict.copy())
+        total_sales = net_sales[0].get("total")
         data.append({})
-        data.append({"item_code": "The Total Net Sales is {0}".format(net_sales[0].get("total"))})
-        data.append({"item_code": "Theoratical Cost is  {0}".format(theoratical_cost)})
-        data.append({"item_code": "Theoratical Percentage is {0}".format((theoratical_cost/net_sales[0].get("total"))*100)})
-        data.append({"item_code": "Actual Cost is {0}%".format(actual_cost)})
-        data.append({"item_code": "Actual Percentage is {0}%".format((actual_cost/net_sales[0].get("total"))*100)})
+        data.append({"item_code": "The Total Net Sales is {0}".format(total_sales)})
+        if total_sales is not None:
+            data.append({"item_code": "Theoratical Cost is  {0}".format(theoratical_cost)})
+            data.append({"item_code": "Theoratical Percentage is {0}".format((theoratical_cost/total_sales)*100)})
+            data.append({"item_code": "Actual Cost is {0}%".format(actual_cost)})
+            data.append({"item_code": "Actual Percentage is {0}%".format((actual_cost/total_sales)*100)})
 
 
         return data
