@@ -22,6 +22,7 @@ def get_data(filters):
 			data_dict["cost"] = d.get("cost")
 			data_dict["date"] = d.get("date")
 			data_dict["time"] = d.get("time")
+			data_dict["reason"] = d.get("reason")
 			
 			data.append(data_dict)
 		return data
@@ -50,3 +51,61 @@ def get_material_issue_data(filters):
 	""".format(from_date, to_date),as_dict = 1)
 
 
+def get_columns():
+	columns = [
+
+		{
+            "label": _("Item"),
+            "fieldname": "item_code",
+            "fieldtype": "Link",
+            "options": "Item",
+            "width": 100,
+        },
+		{
+			  "label": _("Item"),
+            "fieldname": "item_name",
+            "fieldtype": "Data",
+            "width": 100,
+
+
+		},
+        {
+            "label": _("UOM"),
+            "fieldname": "uom",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+		{
+            "label": _("QTY"),
+            "fieldname": "qty",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+		{
+            "label": _("Cost"),
+            "fieldname": "cost",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+		{
+            "label": _("Date"),
+            "fieldname": "date",
+            "fieldtype": "Date",
+            "width": 100,
+        },
+		{
+            "label": _("Time"),
+            "fieldname": "time",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+		{
+            "label": _("Reason"),
+            "fieldname": "reason",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+
+
+	]
+	return columns
