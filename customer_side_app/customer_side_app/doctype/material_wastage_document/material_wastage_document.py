@@ -7,7 +7,7 @@ from frappe.model.document import Document
 class MaterialWastageDocument(Document):
 	def on_submit(self):
 		self.create_material_request()
-	
+
 	def create_material_request(self):
 		doc = frappe.new_doc('Stock Entry')
 		doc.posting_date = self.posting_date
@@ -16,12 +16,11 @@ class MaterialWastageDocument(Document):
 		for i in self.items:
 			doc.append("items",{
 				"item_code":i.get("item_code"),
-				# "s_warehouse":i.get("source_warehouse"),
-				"s_warehouse":self.warehouse,
+				"s_warehouse":i.get("warehouse"),
 				"qty":i.get("qty"),
 				"uom":i.get("uom"),
-				# "cost_center":self.cost_center
 
 			})
 		doc.submit()
+		# frappe.db.set_value('Material Wastage Document', self.name, 'material_issue_receipt', doc.name)
 

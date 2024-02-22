@@ -4,6 +4,20 @@
 
 frappe.query_reports["Recipe Report"] = {
 	"filters": [
+		{
+			label: "Item Group",
+			fieldname: "item_group",
+			fieldtype: "Link",
+			options: "Item Group",
+			// "get_query": function () {
+			// 	return {
+			// 		"filters": {
+			// 			"item_group": frm.doc.item_group,
+			// 		}
+			// 	};
+			// }
+
+		},
 
 	]
 };

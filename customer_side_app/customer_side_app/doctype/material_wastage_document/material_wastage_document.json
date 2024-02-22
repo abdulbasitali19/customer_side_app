@@ -7,15 +7,15 @@
  "engine": "InnoDB",
  "field_order": [
   "posting_date",
-  "posting_time",
   "column_break_5umvw",
-  "warehouse",
+  "posting_time",
   "section_break_udnmy",
   "items",
   "amended_from"
  ],
  "fields": [
   {
+   "default": "Today",
    "fieldname": "posting_date",
    "fieldtype": "Date",
    "label": "Posting Date"
@@ -23,12 +23,6 @@
   {
    "fieldname": "column_break_5umvw",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "warehouse",
-   "fieldtype": "Link",
-   "label": "Warehouse",
-   "options": "Warehouse"
   },
   {
    "fieldname": "section_break_udnmy",
@@ -50,6 +44,7 @@
    "read_only": 1
   },
   {
+   "default": "now",
    "fieldname": "posting_time",
    "fieldtype": "Time",
    "label": "Posting Time"
@@ -58,7 +53,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2024-02-20 09:33:48.665452",
+ "modified": "2024-02-22 13:33:56.170111",
  "modified_by": "Administrator",
  "module": "Customer Side App",
  "name": "Material Wastage Document",

@@ -1,5 +1,5 @@
 {
- "add_total_row": 0,
+ "add_total_row": 1,
  "columns": [],
  "creation": "2024-02-21 10:59:48.277093",
  "disable_prepared_report": 0,
@@ -9,7 +9,7 @@
  "filters": [],
  "idx": 0,
  "is_standard": "Yes",
- "modified": "2024-02-21 10:59:48.277093",
+ "modified": "2024-02-22 13:30:55.161829",
  "modified_by": "Administrator",
  "module": "Customer Side App",
  "name": "Recipe Report",

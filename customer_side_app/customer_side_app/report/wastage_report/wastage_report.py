@@ -1,19 +1,20 @@
 # Copyright (c) 2024, basit and contributors
 # For license information, please see license.txt
 
-# import frappe
+import frappe
+from frappe import _
 
 
 def execute(filters=None):
-	columns, data = [], []
+	columns = get_columns()
+	data =  get_data(filters)
 	return columns, data
-
 
 def get_data(filters):
 	data = []
 	material_issue_data = get_material_issue_data(filters)
 	if material_issue_data:
-		for d in data:
+		for d in material_issue_data:
 			data_dict = {}
 			data_dict["item_code"] = d.get("item_code")
 			data_dict["item_name"] = d.get("item_name")
@@ -23,7 +24,7 @@ def get_data(filters):
 			data_dict["date"] = d.get("date")
 			data_dict["time"] = d.get("time")
 			data_dict["reason"] = d.get("reason")
-			
+
 			data.append(data_dict)
 		return data
 	else:
@@ -40,15 +41,16 @@ def get_material_issue_data(filters):
 			wit.item_name as item_name,
 			wit.uom as uom,
 			wit.qty as qty,
-			wit.rate as cost,
-			mwd.date as date,
-			mwd.time  as time,
+			wit.basic_rate as cost,
+			mwd.posting_date as date,
+			mwd.posting_time  as time,
 			wit.reason
 		FROM
 			`tabMaterial Wastage Document` as mwd INNER JOIN `tabWastage Item Table` as wit on mwd.name = wit.parent
 		WHERE
-			mwd.docstatus = 1 and mwd.posting_date BETWEEN '{1}' AND '{2}'
+			mwd.docstatus = 1 and mwd.posting_date BETWEEN '{0}' AND '{1}'
 	""".format(from_date, to_date),as_dict = 1)
+	return wastage_data
 
 
 def get_columns():
@@ -62,7 +64,7 @@ def get_columns():
             "width": 100,
         },
 		{
-			  "label": _("Item"),
+			"label": _("Item"),
             "fieldname": "item_name",
             "fieldtype": "Data",
             "width": 100,
@@ -72,7 +74,8 @@ def get_columns():
         {
             "label": _("UOM"),
             "fieldname": "uom",
-            "fieldtype": "Data",
+            "fieldtype": "Link",
+			"options" : "UOM",
             "width": 100,
         },
 		{
