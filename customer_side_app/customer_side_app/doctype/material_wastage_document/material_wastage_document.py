@@ -16,7 +16,7 @@ class MaterialWastageDocument(Document):
 		for i in self.items:
 			doc.append("items",{
 				"item_code":i.get("item_code"),
-				"s_warehouse":i.get("warehouse"),
+				"s_warehouse":i.get("s_warehouse"),
 				"qty":i.get("qty"),
 				"uom":i.get("uom"),
 
