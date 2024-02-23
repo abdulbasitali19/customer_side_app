@@ -68,6 +68,7 @@ frappe.ui.form.on("Stock Reconciliation", {
                     posting_date: frm.doc.posting_date,
                     posting_time: frm.doc.posting_time,
                     company: frm.doc.company,
+                    item_group :data.item_group,
                     item_code: data.item_code,
                     ignore_empty_stock: data.ignore_empty_stock
                 },

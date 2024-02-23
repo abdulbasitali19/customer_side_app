@@ -25,7 +25,9 @@ def get_stock_reconcilation_data(filters):
 			sri.current_qty as available_qty,
 			sri.qty as actual_qty,
 			sri.quantity_difference as difference,
-			sri.warehouse as warehouse
+			sri.warehouse as warehouse,
+			sr.posting_date as posting_date,
+			sr.owner as owner
 		FROM
 			`tabStock Reconciliation` as sr inner join `tabStock Reconciliation Item` as sri on sr.name = sri.parent
 		Where
@@ -43,14 +45,16 @@ def get_data(filters):
 			valuation_rate = frappe.db.get_value("Item", i.get("item_name"),"valuation_rate")
 			entries_dict = {}
 			entries_dict['item_name'] = i.get("item_name")
+			entries_dict['posting_date'] = i.get("posting_date")
 			entries_dict['uom'] = i.get("uom")
 			entries_dict['warehouse'] = i.get("warehouse")
 			entries_dict['available_qty'] = i.get("available_qty")
 			entries_dict['available_qty_cost'] = i.get("available_qty") * valuation_rate if valuation_rate else 0.0
 			entries_dict['actual_qty'] = i.get("actual_qty")
 			entries_dict['actual_qty_cost'] = i.get("actual_qty")*valuation_rate if valuation_rate else 0.0
-			entries_dict['difference'] = i.get("difference")
-			entries_dict['difference_cost'] = i.get("difference")*valuation_rate if valuation_rate else 0.0
+			entries_dict['difference'] = float(i.get("difference"))
+			entries_dict['difference_cost'] = float( i.get("difference")) *valuation_rate if valuation_rate else 0.0
+			entries_dict['owner'] = i.get("owner")
 			entries_array.append(entries_dict)
 		return entries_array
 
@@ -60,6 +64,13 @@ def get_columns():
 	"""return columns"""
 	columns = [
 		{"label": _("Item Name"), "fieldname": "item_name", "width": 150},
+		{
+			"label": _("Posting Date"),
+			"fieldname": "posting_date",
+			"fieldtype": "Date",
+			"width": 90,
+
+		},
 		{
 			"label": _("UOM"),
 			"fieldname": "uom",
@@ -110,13 +121,20 @@ def get_columns():
 			"fieldtype": "Float",
 			"width": 100,
 		},
+		{
+			"label": _("User"),
+			"fieldname": "owner",
+			"fieldtype": "Link",
+			"options":"User",
+			"width": 100,
+		},
 	]
 	return columns
 
 def get_conditions(filters):
 	conditions = ""
 	if filters.get("item_name"):
-		conditions += "and sri.item_name = '{0}'".format(filters.get("item"))
+		conditions += "and sri.item_name = '{0}'".format(filters.get("item_name"))
 	if filters.get("warehouse"):
 		conditions += "and sri.warehouse = '{0}'".format(filters.get("warehouse"))
 	if filters.get("item_group"):

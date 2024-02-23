@@ -11,40 +11,22 @@ def execute(filters=None):
 
 
 def get_bom_data(filters):
-    if filters:
-        item_group = filters.get("item_group")
+    conditions = get_conditions(filters)
+    bom_master_data = frappe.db.sql("""
+        SELECT
+            bom.item_name as item,
+            bom_item.item_name as item_name,
+            bom_item.qty as qty,
+            bom_item.uom as uom,
+            bom_item.rate as rate,
+            bom_item.amount as amount
+        FROM
+            `tabBOM` as bom INNER JOIN `tabBOM Item` as bom_item on bom_item.parent = bom.name
+        WHERE 1 = 1 {0}
 
-        bom_master_data = frappe.db.sql("""
-            SELECT
-                bom.item,
-                bom_item.item_name as item_code,
-                bom_item.qty as qty,
-                bom_item.uom as uom,
-                bom_item.rate as rate,
-                bom_item.amount as amount
-            FROM
-                `tabBOM` as bom INNER JOIN `tabBOM Item` as bom_item on bom_item.parent = bom.name
-            WHERE bom.item_group = '{0}'
-
-                """.format(item_group),as_dict=1
-                )
-        return bom_master_data
-
-    else:
-        bom_master_data = frappe.db.sql("""
-            SELECT
-                bom.item,
-                bom_item.item_name as item_code,
-                bom_item.qty as qty,
-                bom_item.uom as uom,
-                bom_item.rate as rate,
-                bom_item.amount as amount
-            FROM
-                `tabBOM` as bom INNER JOIN `tabBOM Item` as bom_item on bom_item.parent = bom.name""",as_dict=1
-                )
-
-        return bom_master_data
-
+            """.format(conditions),as_dict=1
+            )
+    return bom_master_data
 
 def get_data(filters):
     bom_data = get_bom_data(filters)
@@ -54,24 +36,26 @@ def get_data(filters):
         rate = 0
         for d in bom_data:
             if d.get("item") not in added_items:
+                if rate != 0:  # Add total rate before new item row
+                    data.append({"rate": "Total Rate {0}".format(rate)})
                 added_items.add(d.get("item"))
                 rate = 0
                 data.append({"item": d.get("item")})
 
             rate += d.get("rate")
             data_dict = {}
-            data_dict["item_code"] = d.get("item_code")
+            data_dict["item_code"] = d.get("item_name")
             data_dict["qty"] = d.get("qty")
             data_dict["uom"] = d.get("uom")
             data_dict["rate"] = d.get("rate")
             data_dict["amount"] = d.get("amount")
             data.append(data_dict)
-            if d.get("item") not in added_items:
-                data.append({"rate": "Total Rate {0}".format(rate)})
 
-
+        # Add total rate after the last item row
+        data.append({"rate": "Total Rate {0}".format(rate)})
 
         return data
+
 
 
 
@@ -86,7 +70,7 @@ def get_columns():
             "width": 250,
         },
 		{
-            "label": _("Item"),
+            "label": _("Item Name"),
             "fieldname": "item_code",
             "fieldtype": "Link",
             "options": "Item",
@@ -120,3 +104,12 @@ def get_columns():
 	]
 
 	return columns
+
+
+def get_conditions(filters):
+    conditions = ""
+    if filters.get("item_name"):
+        conditions += " AND bom.item = '{0}'".format(filters.get("item_name"))
+    if filters.get("item_group"):
+        conditions += " AND bom.item_group = '{0}'".format(filters.get("item_group"))
+    return conditions

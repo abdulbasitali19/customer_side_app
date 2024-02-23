@@ -56,7 +56,7 @@ def get_material_issue_data(filters):
 			`tabMaterial Wastage Document` as mwd INNER JOIN `tabWastage Item Table` as wit on mwd.name = wit.parent
 		WHERE
 			mwd.docstatus = 1 and mwd.posting_date BETWEEN '{0}' AND '{1}' {2}
-	""".format(from_date, to_date, conditions),as_dict = 1)
+	""".format(from_date, to_date, conditions),as_dict = 1, debug=True)
 	return wastage_data
 
 
@@ -139,7 +139,7 @@ def get_columns():
 def get_conditions(filters):
 	conditions = ""
 	if filters.get("item_name"):
-		conditions += "and wit.item_name = '{0}'".format(filters.get("item"))
+		conditions += "and wit.item_code = '{0}'".format(filters.get("item_name"))
 	if filters.get("warehouse"):
 		conditions += "and wit.s_warehouse = '{0}'".format(filters.get("warehouse"))
 	if filters.get("item_group"):

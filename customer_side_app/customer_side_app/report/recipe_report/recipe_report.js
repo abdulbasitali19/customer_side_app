@@ -18,6 +18,13 @@ frappe.query_reports["Recipe Report"] = {
 			// }
 
 		},
+		{
+			"fieldname":"item_name",
+			"label": __("Item"),
+			"fieldtype": "Link",
+			"options":"Item",
+			"width": "80",
+		},
 
 	]
 };
