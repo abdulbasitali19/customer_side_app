@@ -72,7 +72,7 @@ frappe.ui.form.on("Stock Reconciliation", {
 
         frappe.prompt(fields, function (data) {
             frappe.call({
-                method: "customer_side_app.overrides.stock_reconciliation.get_items",
+                method: "customer_side_app.overrides.custom_stock_reconciliation.get_normal_items",
                 args: {
                     warehouse: data.warehouse,
                     posting_date: frm.doc.posting_date,
