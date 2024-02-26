@@ -27,42 +27,52 @@ frappe.ui.form.on("Stock Reconciliation", {
                 }
             },
             {
-                label: "Item Group",
-                fieldname: "item_group",
-                fieldtype: "Link",
-                options: "Item Group",
-                "get_query": function () {
-                    return {
-                        "filters": {
-                            "item_group": frm.doc.item_group,
-                        }
-                    };
-                }
+                label: 'Item Count Type',
+                fieldname: 'item_count_type',
+                fieldtype: 'Select',
+                options: ["","Daily", "Weekly", "Monthly"],
+                reqd: 1,
+
 
             },
-            {
-                label: "Item Code",
-                fieldname: "item_code",
-                fieldtype: "Link",
-                options: "Item",
-                "get_query": function () {
-                    return {
-                        "filters": {
-                            "disabled": 0,
-                        }
-                    };
-                }
-            },
+            // {
+            //     label: "Item Group",
+            //     fieldname: "item_group",
+            //     fieldtype: "Link",
+            //     options: "Item Group",
+            //     "get_query": function () {
+            //         return {
+            //             "filters": {
+            //                 "item_group": frm.doc.item_group,
+            //             }
+            //         };
+            //     }
+
+            // },
+            // {
+            //     label: "Item Code",
+            //     fieldname: "item_code",
+            //     fieldtype: "Link",
+            //     options: "Item",
+            //     "get_query": function () {
+            //         return {
+            //             "filters": {
+            //                 "disabled": 0,
+            //             }
+            //         };
+            //     }
+            // },
             {
                 label: __("Ignore Empty Stock"),
                 fieldname: "ignore_empty_stock",
-                fieldtype: "Check"
+                fieldtype: "Check",
+                default : 1
             }
         ];
 
         frappe.prompt(fields, function (data) {
             frappe.call({
-                method: "erpnext.stock.doctype.stock_reconciliation.stock_reconciliation.get_items",
+                method: "customer_side_app.overrides.stock_reconciliation.get_items",
                 args: {
                     warehouse: data.warehouse,
                     posting_date: frm.doc.posting_date,
@@ -70,6 +80,7 @@ frappe.ui.form.on("Stock Reconciliation", {
                     company: frm.doc.company,
                     item_group :data.item_group,
                     item_code: data.item_code,
+                    item_count_type:data.item_count_type,
                     ignore_empty_stock: data.ignore_empty_stock
                 },
                 callback: function (r) {
