@@ -24,13 +24,13 @@ def get_stock_value(filters):
 				item_code,
 				warehouse,
 				stock_uom,
-				qty_after_transaction 
+				qty_after_transaction
 			FROM
 				`tabStock Ledger Entry`
 			WHERE
 				posting_date BETWEEN '{0}' AND '{1}' AND warehouse = '{2}'
 			GROUP BY
-				item_code   
+				item_code
 			""".format(from_date , to_date, warehouse),
 			as_dict=1,
 		)
@@ -46,35 +46,17 @@ def get_data(filters):
         item_details = get_item_and_item_group(i.get("item_code"))
 
         data_dict["item_code"] = i.get("item_code")
-        data_dict["item_name"] = item_details.get("item_name")
-        data_dict["item_group"] = item_details.get("item_group")
+        data_dict["item_name"] = (item_details or {}).get("item_name")
+        data_dict["item_group"] = (item_details or {}).get("item_group")
         data_dict["warehouse"] = i.get("warehouse")
         data_dict["stock_uom"] = i.get("stock_uom")
         data_dict["bal_qty"] = i.get("qty_after_transaction")
 
         stock_value_difference = i.get("qty_after_transaction")
-        if item_details:
-            if "Box" in item_details and stock_value_difference:
-                conversion_factor = item_details.get("Box")
-                data_dict["box"] = round(stock_value_difference / conversion_factor, 2)
-            else:
-                data_dict["box"] = 0.0
-
-            if "Kg" in item_details and stock_value_difference:
-                conversion_factor = item_details.get("Kg")
-                data_dict["kg"] =  stock_value_difference / conversion_factor 
-            else:
-                data_dict["kg"] = 0.0
-
-            if "Liter" in item_details and stock_value_difference:
-                conversion_factor = item_details.get("Liter")
-                data_dict["liter"] =   stock_value_difference / conversion_factor
-            else:
-                data_dict["liter"] = 0.0
-        else:
-            data_dict["box"] = 0.0
-            data_dict["kg"] = 0.0
-            data_dict["liter"] = 0.0
+        if item_details and stock_value_difference:
+            uom = item_details.get("uom")
+            conversion_factor = round(stock_value_difference / item_details.get("factor"), 2)
+            data_dict.update({"uom_with_conversion":f"{conversion_factor } {uom}"})
 
         data.append(data_dict)
 
@@ -82,8 +64,8 @@ def get_data(filters):
 
 
 def get_item_and_item_group(item_code):
-    item_group, item_name = frappe.db.get_value(
-        "Item", item_code, ["item_group", "item_name"]
+    item_name, item_group, secondary_unit = frappe.db.get_value(
+        "Item", item_code, ["item_name", "item_group", "secondary_unit" ]
     )
     unit_of_measure = frappe.get_all(
         "UOM Conversion Detail",
@@ -91,13 +73,9 @@ def get_item_and_item_group(item_code):
         fields=["uom", "conversion_factor"],
     )
 
-    uom_factor_dict = {"item_name": item_name, "item_group": item_group}
     for uom_factor in unit_of_measure:
-        uom = uom_factor["uom"]
-        factor = uom_factor["conversion_factor"]
-        uom_factor_dict[uom] = factor
-
-    return uom_factor_dict
+        if secondary_unit == uom_factor["uom"]:
+            return {"item_name":item_name,"item_group":item_group,"uom":uom_factor["uom"], "factor" : uom_factor["conversion_factor"]}
 
 
 def get_columns():
@@ -139,22 +117,10 @@ def get_columns():
             "convertible": "qty",
         },
         {
-            "label": _("Balance in KG"),
-            "fieldname": "kg",
+            "label": _("Balance in UOM"),
+            "fieldname": "uom_with_conversion",
             "fieldtype": "data",
             "width": 120,
-        },
-        {
-            "label": _("Balance in Box"),
-            "fieldname": "box",
-            "fieldtype": "data",
-            "width": 120,
-        },
-        {
-            "label": _("Balance in Liter"),
-            "fieldname": "liter",
-            "fieldtype": "data",
-            "width": 120,
-        },
+        }
     ]
     return columns
