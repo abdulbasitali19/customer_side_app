@@ -28,27 +28,9 @@ def get_normal_items(warehouse, item_count_type, posting_date, posting_time, com
     """.format(conditions=conditions_str), as_dict=True)
 
     for item in items:
-        if get_value_from_bin(warehouse, item['item_code']):
             item_list.append({"item_code": item['item_code'], "valuation_rate":item['valuation_rate'],"warehouse": warehouse})
 
     return item_list
-
-def get_value_from_bin(warehouse, item_code):
-    # Optimize query to only fetch items matching warehouse and item_code
-    items = frappe.db.sql("""
-        SELECT
-            item_code
-        FROM
-            `tabBin`
-        WHERE
-            warehouse = %s
-            AND item_code = %s
-    """, (warehouse, item_code), as_dict=1)
-
-    return items
-
-
-
 
 def get_conditions(item_count_type):
     conditions = ''
