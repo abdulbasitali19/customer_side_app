@@ -35,33 +35,6 @@ frappe.ui.form.on("Stock Reconciliation", {
 
 
             },
-            // {
-            //     label: "Item Group",
-            //     fieldname: "item_group",
-            //     fieldtype: "Link",
-            //     options: "Item Group",
-            //     "get_query": function () {
-            //         return {
-            //             "filters": {
-            //                 "item_group": frm.doc.item_group,
-            //             }
-            //         };
-            //     }
-
-            // },
-            // {
-            //     label: "Item Code",
-            //     fieldname: "item_code",
-            //     fieldtype: "Link",
-            //     options: "Item",
-            //     "get_query": function () {
-            //         return {
-            //             "filters": {
-            //                 "disabled": 0,
-            //             }
-            //         };
-            //     }
-            // },
             {
                 label: __("Ignore Empty Stock"),
                 fieldname: "ignore_empty_stock",
@@ -84,6 +57,7 @@ frappe.ui.form.on("Stock Reconciliation", {
                     ignore_empty_stock: data.ignore_empty_stock
                 },
                 callback: function (r) {
+                    debugger;
                     if (r.exc || !r.message || !r.message.length) return;
 
                     frm.clear_table("items");
@@ -124,5 +98,11 @@ frappe.ui.form.on("Stock Reconciliation Item", {
         }
     },
 
-
+    qty:function(frm,cdt, cdn){
+        var d = locals[cdt][cdn];
+        debugger;
+        if (d.qty){
+            frappe.model.set_value(cdt, cdn, "amount", flt(d.qty * d.valuation_rate));
+        }
+    }
 })
