@@ -1,4 +1,20 @@
 frappe.ui.form.on("Stock Reconciliation", {
+
+    setup: function (frm) {
+        frm.set_query("uom", "items", function (doc, cdt, cdn) {
+          let row = locals[cdt][cdn];
+          return {
+            query:
+              "erpnext.accounts.doctype.pricing_rule.pricing_rule.get_item_uoms",
+            filters: {
+              value: row.item_code,
+              apply_on: "Item Code",
+            },
+          };
+        });
+      },
+
+
     refresh: function (frm) {
         if (frm.doc.docstatus < 1) {
             frm.add_custom_button(__("Fetch Items from Warehouse"), function () {
@@ -75,6 +91,9 @@ frappe.ui.form.on("Stock Reconciliation", {
         }, __("Get Items"), __("Update"));
     },
 })
+
+
+
 
 
 frappe.ui.form.on("Stock Reconciliation Item", {
