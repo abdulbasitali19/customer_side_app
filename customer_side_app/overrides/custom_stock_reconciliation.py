@@ -20,7 +20,9 @@ def get_normal_items(warehouse, item_count_type, posting_date, posting_time, com
     items = frappe.db.sql("""
         SELECT
             item_code,
-			valuation_rate
+			valuation_rate,
+            item_name,
+            item_group
         FROM
             `tabItem`
         WHERE
@@ -28,7 +30,7 @@ def get_normal_items(warehouse, item_count_type, posting_date, posting_time, com
     """.format(conditions=conditions_str), as_dict=True)
 
     for item in items:
-            item_list.append({"item_code": item['item_code'], "valuation_rate":item['valuation_rate'],"warehouse": warehouse})
+            item_list.append({"item_code": item['item_code'],"item_name": item['item_name'], "item_group": item['item_group'],"valuation_rate":item['valuation_rate'],"warehouse": warehouse})
 
     return item_list
 

@@ -110,6 +110,7 @@ frappe.ui.form.on("Stock Reconciliation Item", {
                 },
                 callback: function (r) {
                     if (r.message) {
+                        console.log(r.message)
                         frappe.model.set_value(cdt, cdn, r.message);
                     }
                 }
@@ -117,11 +118,15 @@ frappe.ui.form.on("Stock Reconciliation Item", {
         }
     },
 
+
     qty:function(frm,cdt, cdn){
         var d = locals[cdt][cdn];
-        debugger;
         if (d.qty){
             frappe.model.set_value(cdt, cdn, "amount", flt(d.qty * d.valuation_rate));
         }
     }
+
+    
+
 })
+
