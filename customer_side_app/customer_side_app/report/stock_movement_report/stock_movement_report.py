@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+from frappe.utils.data import nowtime
 
 
 def execute(filters=None):
@@ -129,18 +130,21 @@ def get_data(filters):
                 )
                 data_dict["waste"] = waste_qty[0].get("waste_qty") if waste_qty[0].get("waste_qty") else 0
 
-                opening = frappe.db.sql("""
-                    SELECT
-                        actual_qty
-                    FROM
-                        `tabStock Ledger Entry`
-                    WHERE
-                        item_code = '{0}' and posting_date BETWEEN '{1}' AND '{2}' AND warehouse = '{3}'
-                    ORDER BY
-                        creation DESC
-                """.format(item,from_date,to_date,warehouse),as_dict=1)
-                data_dict["opening"] = opening[0].get("actual_qty") if opening[0].get("actual_qty") else 0
-
+                # opening = frappe.db.sql("""
+                #     SELECT
+                #         actual_qty
+                #     FROM
+                #         `tabStock Ledger Entry`
+                #     WHERE
+                #         item_code = '{0}' and posting_date BETWEEN '{1}' AND '{2}' AND warehouse = '{3}'
+                #     ORDER BY
+                #         creation DESC
+                # """.format(item,from_date,to_date,warehouse),as_dict=1)
+                # data_dict["opening"] = opening[0].get("actual_qty") if opening[0].get("actual_qty") else 0
+                opening = get_stock_balance(item,warehouse,to_date)
+                data_dict["opening"] =  opening    
+               
+               
                 data.append(data_dict)
 
         return data
@@ -229,3 +233,192 @@ def get_conditions(filters):
     if filters.get("item_group"):
         conditions += " AND item_group = '{0}'".format(filters.get("item_group"))
     return conditions
+
+
+def get_stock_balance(
+	item_code,
+	warehouse,
+	posting_date=None,
+	posting_time=None,
+	with_valuation_rate=False,
+	with_serial_no=False,
+	inventory_dimensions_dict=None,
+	batch_no=None,
+	voucher_no=None,
+):
+	"""Returns stock balance quantity at given warehouse on given posting date or current date.
+
+	If `with_valuation_rate` is True, will return tuple (qty, rate)"""
+
+	# from erpnext.stock.stock_ledger import get_previous_sle
+
+	if posting_date is None:
+		posting_date = nowdate()
+	if posting_time is None:
+		posting_time = nowtime()
+
+
+	args = {
+		"item_code": item_code,
+		"warehouse": warehouse,
+		"posting_date": posting_date,
+		"posting_time": posting_time,
+	}
+
+	if voucher_no:
+		args["voucher_no"] = voucher_no
+
+	extra_cond = ""
+	if inventory_dimensions_dict:
+		for field, value in inventory_dimensions_dict.items():
+			args[field] = value
+			extra_cond += f" and {field} = %({field})s"
+
+	last_entry = get_previous_sle(args, extra_cond=extra_cond)
+
+	if with_valuation_rate:
+		if with_serial_no:
+			if batch_no:
+				args["batch_no"] = batch_no
+
+			serial_nos = get_serial_nos_data_after_transactions(args)
+
+			return (
+				(last_entry.qty_after_transaction, last_entry.valuation_rate, serial_nos)
+				if last_entry
+				else (0.0, 0.0, None)
+			)
+		else:
+			return (
+				(last_entry.qty_after_transaction, last_entry.valuation_rate) if last_entry else (0.0, 0.0)
+			)
+	else:
+		return last_entry.qty_after_transaction if last_entry else 0.0
+
+
+def get_previous_sle(args, for_update=False, extra_cond=None):
+	"""
+	get the last sle on or before the current time-bucket,
+	to get actual qty before transaction, this function
+	is called from various transaction like stock entry, reco etc
+
+	args = {
+	        "item_code": "ABC",
+	        "warehouse": "XYZ",
+	        "posting_date": "2012-12-12",
+	        "posting_time": "12:00",
+	        "sle": "name of reference Stock Ledger Entry"
+	}
+	"""
+	args["name"] = args.get("sle", None) or ""
+	sle = get_stock_ledger_entries(
+		args, "<=", "desc", "limit 1", for_update=for_update, extra_cond=extra_cond
+	)
+	return sle and sle[0] or {}
+
+
+def get_stock_ledger_entries(
+	previous_sle,
+	operator=None,
+	order="desc",
+	limit=None,
+	for_update=False,
+	debug=False,
+	check_serial_no=True,
+	extra_cond=None,
+):
+	"""get stock ledger entries filtered by specific posting datetime conditions"""
+	conditions = " and timestamp(posting_date, posting_time) {0} timestamp(%(posting_date)s, %(posting_time)s)".format(
+		operator
+	)
+	if previous_sle.get("warehouse"):
+		conditions += " and warehouse = %(warehouse)s"
+	elif previous_sle.get("warehouse_condition"):
+		conditions += " and " + previous_sle.get("warehouse_condition")
+
+	if check_serial_no and previous_sle.get("serial_no"):
+		# conditions += " and serial_no like {}".format(frappe.db.escape('%{0}%'.format(previous_sle.get("serial_no"))))
+		serial_no = previous_sle.get("serial_no")
+		conditions += (
+			""" and
+			(
+				serial_no = {0}
+				or serial_no like {1}
+				or serial_no like {2}
+				or serial_no like {3}
+			)
+		"""
+		).format(
+			frappe.db.escape(serial_no),
+			frappe.db.escape("{}\n%".format(serial_no)),
+			frappe.db.escape("%\n{}".format(serial_no)),
+			frappe.db.escape("%\n{}\n%".format(serial_no)),
+		)
+
+	if not previous_sle.get("posting_date"):
+		previous_sle["posting_date"] = "1900-01-01"
+	if not previous_sle.get("posting_time"):
+		previous_sle["posting_time"] = "00:00"
+
+	if operator in (">", "<=") and previous_sle.get("name"):
+		conditions += " and name!=%(name)s"
+
+	if operator in (">", "<=") and previous_sle.get("voucher_no"):
+		conditions += " and voucher_no!=%(voucher_no)s"
+
+	if extra_cond:
+		conditions += f"{extra_cond}"
+
+	return frappe.db.sql(
+		"""
+		select *, timestamp(posting_date, posting_time) as "timestamp"
+		from `tabStock Ledger Entry`
+		where item_code = %%(item_code)s
+		and is_cancelled = 0
+		%(conditions)s
+		order by timestamp(posting_date, posting_time) %(order)s, creation %(order)s
+		%(limit)s %(for_update)s"""
+		% {
+			"conditions": conditions,
+			"limit": limit or "",
+			"for_update": for_update and "for update" or "",
+			"order": order,
+		},
+		previous_sle,
+		as_dict=1,
+		debug=debug,
+	)
+
+def get_serial_nos_data_after_transactions(args):
+	serial_nos = set()
+	args = frappe._dict(args)
+
+	sle = frappe.qb.DocType("Stock Ledger Entry")
+	query = (
+		frappe.qb.from_(sle)
+		.select(sle.serial_no, sle.actual_qty)
+		.where(
+			(sle.is_cancelled == 0)
+			& (sle.item_code == args.item_code)
+			& (sle.warehouse == args.warehouse)
+			& (
+				CombineDatetime(sle.posting_date, sle.posting_time)
+				< CombineDatetime(args.posting_date, args.posting_time)
+			)
+		)
+		.orderby(sle.posting_date, sle.posting_time, sle.creation)
+	)
+
+	if args.batch_no:
+		query = query.where(sle.batch_no == args.batch_no)
+
+	stock_ledger_entries = query.run(as_dict=True)
+
+	for stock_ledger_entry in stock_ledger_entries:
+		changed_serial_no = get_serial_nos_data(stock_ledger_entry.serial_no)
+		if stock_ledger_entry.actual_qty > 0:
+			serial_nos.update(changed_serial_no)
+		else:
+			serial_nos.difference_update(changed_serial_no)
+
+	return "\n".join(serial_nos)

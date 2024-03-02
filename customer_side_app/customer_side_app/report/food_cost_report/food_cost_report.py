@@ -40,8 +40,9 @@ def get_data(filters):
                 """SELECT sr.name, sri.current_qty as current_qty, sri.qty as qty, sum(sri.amount) as amount
                    FROM `tabStock Reconciliation` as sr INNER JOIN  `tabStock Reconciliation Item` AS sri
                    on sr.name = sri.parent
-                   WHERE sr.docstatus = 1 AND sri.item_code = '{0}' and sri.warehouse = '{1}'""".format(
-                    item,warehouse
+                   WHERE sr.docstatus = 1 AND sri.item_code = '{0}' and sri.warehouse = '{1}' AND 
+                   sr.posting_date BETWEEN '{2}' AND '{3}'""".format(
+                    item,warehouse,from_date,to_date
                 ),
                 as_dict=1,
             )
