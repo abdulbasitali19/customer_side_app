@@ -147,9 +147,9 @@ def get_data(filters):
                 #         creation DESC
                 # """.format(item,from_date,to_date,warehouse),as_dict=1)
                 opening = get_stock_balance(item,warehouse,to_date)
-                data_dict["opening"] =    opening                  # opening[0].get("actual_qty") if opening[0].get("actual_qty") else 0
-
-                data_dict["theoratical_cost"] = opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
+                data_dict["opening"] = opening                  # opening[0].get("actual_qty") if opening[0].get("actual_qty") else 0
+                theoratical_cost = opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
+                data_dict["theoratical_cost"] = theoratical_cost
 
                 data.append(data_dict)
 
