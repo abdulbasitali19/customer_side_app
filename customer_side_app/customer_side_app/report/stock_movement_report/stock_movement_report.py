@@ -141,10 +141,10 @@ def get_data(filters):
                 #         creation DESC
                 # """.format(item,from_date,to_date,warehouse),as_dict=1)
                 # data_dict["opening"] = opening[0].get("actual_qty") if opening[0].get("actual_qty") else 0
-                opening = get_stock_balance(item,warehouse,to_date)
-                data_dict["opening"] =  opening    
-               
-               
+                opening = get_stock_balance(item,warehouse,from_date)
+                data_dict["opening"] =  opening
+
+
                 data.append(data_dict)
 
         return data
