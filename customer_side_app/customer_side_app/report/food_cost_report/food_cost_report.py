@@ -10,7 +10,6 @@ def execute(filters=None):
     data = get_data(filters)
     return columns, data
 
-
 def get_data(filters):
     if filters:
         to_date = filters.get("to_date")
@@ -28,12 +27,13 @@ def get_data(filters):
             WHERE
              1 = 1
                 {0}
-        """.format(conditions),as_dict=1, debug = True)
+        """.format(conditions),as_dict=1)
     if item_list:
-        # theoratical_cost = 0
-        # actual_cost = 0
+        theoratical_cost = 0
+        actual_cost = 0
         data = []
         for item in item_list:
+            item_name = frappe.db.get_value("Item", item.get("item_code"), 'item_name')
             item = item.get("item_code")
             data_dict = {}
             stock_reconcile = frappe.db.sql(
@@ -48,10 +48,13 @@ def get_data(filters):
             )
 
             if stock_reconcile:
+                data_dict["item_name"] = item_name
                 data_dict["item_code"] = item
                 data_dict["theoratical"] = stock_reconcile[0].get("current_qty") if stock_reconcile[0].get("current_qty") else 0
-                data_dict["actual"] = stock_reconcile[0].get("qty") if stock_reconcile[0].get("qty")else 0
+                data_dict["actual"] = stock_reconcile[0].get("qty") if stock_reconcile[0].get("qty") else 0
                 data_dict["actual_cost"] = stock_reconcile[0].get("amount") if stock_reconcile[0].get("amount")else 0
+                
+                actual_cost += stock_reconcile[0].get("amount") if stock_reconcile[0].get("amount")else 0
 
                 uom = frappe.db.sql("""
                     SELECT
@@ -136,20 +139,10 @@ def get_data(filters):
                 waste_qty = waste_qty[0].get("waste_qty") if waste_qty[0].get("waste_qty") else 0
                 data_dict["waste"] = waste_qty
 
-                # opening = frappe.db.sql("""
-                #     SELECT
-                #         qty_after_transaction
-                #     FROM
-                #         `tabStock Ledger Entry`
-                #     WHERE
-                #         item_code = '{0}' and posting_date BETWEEN '{1}' AND '{2}' AND warehouse = '{3}'
-                #     ORDER BY
-                #         creation DESC
-                # """.format(item,from_date,to_date,warehouse),as_dict=1)
                 opening = get_stock_balance(item,warehouse,to_date)
-                data_dict["opening"] = opening                  # opening[0].get("actual_qty") if opening[0].get("actual_qty") else 0
-                theoratical_cost = opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
-                data_dict["theoratical_cost"] = theoratical_cost
+                data_dict["opening"] = opening
+                data_dict["theoratical_cost"] = opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
+                theoratical_cost += opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
 
                 data.append(data_dict)
 
@@ -182,6 +175,13 @@ def get_columns():
         {
             "label": _("Item"),
             "fieldname": "item_code",
+            "fieldtype": "Link",
+            "options": "Item",
+            "width": 100,
+        },
+        {
+            "label": _("Item Name"),
+            "fieldname": "item_name",
             "fieldtype": "Link",
             "options": "Item",
             "width": 100,

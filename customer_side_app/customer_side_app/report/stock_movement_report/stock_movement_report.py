@@ -3,7 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.utils.data import nowtime
+from frappe.utils.data import nowtime,nowdate
 
 
 def execute(filters=None):
@@ -30,12 +30,13 @@ def get_data(filters):
             WHERE
              1 = 1
                 {0}
-        """.format(conditions),as_dict=1, debug = True)
+        """.format(conditions),as_dict=True)
 
     if item_list:
         data = []
 
         for item in item_list:
+            item_name = frappe.db.get_value("Item", item.get("item_code"), 'item_name')
             item = item.get("item_code")
             data_dict = {}
             stock_reconcile = frappe.db.sql(
@@ -50,6 +51,7 @@ def get_data(filters):
 
             if stock_reconcile:
                 data_dict["item_code"] = item
+                data_dict["item_name"] = item_name
                 data_dict["theoratical"] = stock_reconcile[0].get("current_qty") if stock_reconcile[0].get("current_qty") else 0
                 data_dict["actual"] = stock_reconcile[0].get("qty") if stock_reconcile[0].get("qty")else 0
 
@@ -129,18 +131,6 @@ def get_data(filters):
 					   as_dict = 1
                 )
                 data_dict["waste"] = waste_qty[0].get("waste_qty") if waste_qty[0].get("waste_qty") else 0
-
-                # opening = frappe.db.sql("""
-                #     SELECT
-                #         actual_qty
-                #     FROM
-                #         `tabStock Ledger Entry`
-                #     WHERE
-                #         item_code = '{0}' and posting_date BETWEEN '{1}' AND '{2}' AND warehouse = '{3}'
-                #     ORDER BY
-                #         creation DESC
-                # """.format(item,from_date,to_date,warehouse),as_dict=1)
-                # data_dict["opening"] = opening[0].get("actual_qty") if opening[0].get("actual_qty") else 0
                 opening = get_stock_balance(item,warehouse,from_date)
                 data_dict["opening"] =  opening
 
@@ -157,6 +147,13 @@ def get_columns():
         {
             "label": _("Item"),
             "fieldname": "item_code",
+            "fieldtype": "Link",
+            "options": "Item",
+            "width": 100,
+        },
+          {
+            "label": _("Item Name"),
+            "fieldname": "item_name",
             "fieldtype": "Link",
             "options": "Item",
             "width": 100,
