@@ -43,7 +43,7 @@ def get_data(filters):
                 """SELECT sr.name, sri.current_qty as current_qty, sri.qty as qty
                    FROM `tabStock Reconciliation` as sr INNER JOIN  `tabStock Reconciliation Item` AS sri
                    on sr.name = sri.parent
-                   WHERE sr.docstatus = 1 AND sri.item_code = '{0}' and sri.warehouse = '{1}'""".format(
+                   WHERE sr.docstatus = 1 AND sr.purpose = 'Stock Reconciliation' AND sri.item_code = '{0}' and sri.warehouse = '{1}'""".format(
                     item,warehouse
                 ),
                 as_dict=1,

@@ -31,8 +31,8 @@ def get_stock_reconcilation_data(filters):
 		FROM
 			`tabStock Reconciliation` as sr inner join `tabStock Reconciliation Item` as sri on sr.name = sri.parent
 		Where
-			sr.posting_date between '{0}' and '{1}' {2}
-	""".format(from_date,to_date,conditions),as_dict = 1, debug = True)
+			sr.purpose = 'Stock Reconciliation' AND sr.docstatus = 1 AND sr.posting_date between '{0}' and '{1}' {2}
+	""".format(from_date,to_date,conditions),as_dict = 1)
 
 	return data
 

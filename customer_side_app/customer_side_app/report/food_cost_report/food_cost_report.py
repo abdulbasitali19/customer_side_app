@@ -40,7 +40,7 @@ def get_data(filters):
                 """SELECT sr.name, sri.current_qty as current_qty, sri.qty as qty, sum(sri.amount) as amount
                    FROM `tabStock Reconciliation` as sr INNER JOIN  `tabStock Reconciliation Item` AS sri
                    on sr.name = sri.parent
-                   WHERE sr.docstatus = 1 AND sri.item_code = '{0}' and sri.warehouse = '{1}' AND 
+                   WHERE sr.docstatus = 1 AND sr.purpose = 'Stock Reconciliation' AND sri.item_code = '{0}' and sri.warehouse = '{1}' AND 
                    sr.posting_date BETWEEN '{2}' AND '{3}'""".format(
                     item,warehouse,from_date,to_date
                 ),
@@ -52,9 +52,7 @@ def get_data(filters):
                 data_dict["item_code"] = item
                 data_dict["theoratical"] = stock_reconcile[0].get("current_qty") if stock_reconcile[0].get("current_qty") else 0
                 data_dict["actual"] = stock_reconcile[0].get("qty") if stock_reconcile[0].get("qty") else 0
-                data_dict["actual_cost"] = stock_reconcile[0].get("amount") if stock_reconcile[0].get("amount")else 0
-                
-                actual_cost += stock_reconcile[0].get("amount") if stock_reconcile[0].get("amount")else 0
+                data_dict["actual_cost"] = stock_reconcile[0].get("amount") if stock_reconcile[0].get("amount") else 0
 
                 uom = frappe.db.sql("""
                     SELECT
