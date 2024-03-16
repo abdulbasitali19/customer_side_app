@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.utils.data import nowtime
+from frappe.utils import add_to_date
 
 def execute(filters=None):
     columns = get_columns()
@@ -19,21 +20,23 @@ def get_data(filters):
         item_group = filters.get("item_group")
         conditions = get_conditions(filters)
 
-    item_list = frappe.db.sql("""
-            SELECT
-                item_code
-            FROM
-                `tabItem`
-            WHERE
-             1 = 1
-                {0}
-        """.format(conditions),as_dict=1)
+   
+    item_list =frappe.db.sql("""
+            	SELECT 
+                    sri.item_code as item_code
+                FROM 
+                	`tabStock Reconciliation` as sr INNER JOIN  `tabStock Reconciliation Item` AS sri   
+                	on sr.name = sri.parent
+                WHERE sr.docstatus = 1 AND sr.purpose = 'Stock Reconciliation' AND 
+                   sr.posting_date BETWEEN '{0}' AND '{1}' and sri.warehouse = '{2}' {3}
+                   Group BY item_code
+                """.format(from_date,to_date,warehouse,conditions), as_dict=1,debug = True)
     if item_list:
         theoratical_cost = 0
         actual_cost = 0
         data = []
         for item in item_list:
-            item_name = frappe.db.get_value("Item", item.get("item_code"), 'item_name')
+            item_name, valuation_rate = frappe.db.get_value("Item", item.get("item_code"), ['item_name','valuation_rate'])
             item = item.get("item_code")
             data_dict = {}
             stock_reconcile = frappe.db.sql(
@@ -50,9 +53,9 @@ def get_data(filters):
             if stock_reconcile:
                 data_dict["item_name"] = item_name
                 data_dict["item_code"] = item
+                data_dict["valuation_rate"] = valuation_rate
                 data_dict["theoratical"] = stock_reconcile[0].get("current_qty") if stock_reconcile[0].get("current_qty") else 0
                 data_dict["actual"] = stock_reconcile[0].get("qty") if stock_reconcile[0].get("qty") else 0
-                data_dict["actual_cost"] = stock_reconcile[0].get("amount") if stock_reconcile[0].get("amount") else 0
 
                 uom = frappe.db.sql("""
                     SELECT
@@ -68,8 +71,8 @@ def get_data(filters):
 
                 purchase_qty = frappe.db.sql(
                     """SELECT SUM(sit.stock_qty) as purchase_qty
-                       FROM `tabPurchase Invoice` AS pi
-                       INNER JOIN `tabPurchase Invoice Item` AS sit ON pi.name = sit.parent
+                       FROM `tabPurchase Receipt` AS pi
+                       INNER JOIN `tabPurchase Receipt Item` AS sit ON pi.name = sit.parent
                        WHERE sit.item_code = '{0}' and pi.docstatus = 1
                        AND pi.posting_date BETWEEN '{1}' AND '{2}' AND sit.warehouse = '{3}' """.format(item, from_date, to_date, warehouse ),
 					   as_dict = 1
@@ -89,7 +92,7 @@ def get_data(filters):
                 data_dict["sales"] = sales_qty
 
                 transfer_qty = frappe.db.sql(
-                    """SELECT SUM(sed.transfer_qty) as transfer_qty
+                    """SELECT SUM(sed.transferred_qty) as transfer_qty
                        FROM `tabStock Entry` AS se
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
                        WHERE sed.item_code = '{0}'
@@ -107,14 +110,14 @@ def get_data(filters):
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
                        WHERE sed.item_code = '{0}'
                        AND se.stock_entry_type = 'Material Transfer' AND se.docstatus = 1
-                       AND se.posting_date BETWEEN '{1}' AND '{2}' AND sed.s_warehouse = '{3}'""".format(item, from_date, to_date,warehouse),
+                       AND se.posting_date BETWEEN '{1}' AND '{2}' AND sed.t_warehouse = '{3}'""".format(item, from_date, to_date,warehouse),
 					   as_dict = 1
                 )
                 received_qty = received_qty[0].get("transfer_qty")if received_qty[0].get("transfer_qty") else 0
                 data_dict["received"] = received_qty
 
                 manufacturing_qty = frappe.db.sql(
-                    """SELECT SUM(sed.transfer_qty) as manu_qty
+                    """SELECT SUM(sed.qty) as manu_qty
                        FROM `tabStock Entry` AS se
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
                        WHERE sed.item_code = '{0}'
@@ -136,11 +139,29 @@ def get_data(filters):
                 )
                 waste_qty = waste_qty[0].get("waste_qty") if waste_qty[0].get("waste_qty") else 0
                 data_dict["waste"] = waste_qty
-
-                opening = get_stock_balance(item,warehouse,to_date)
+                
+                from_date = add_to_date(from_date,days = -1)
+                opening = get_stock_balance(item,warehouse,from_date ,"23:59:59")
+                end_count = get_stock_balance(item,warehouse,to_date,"23:59:59")
+                actual_usage = opening + purchase_qty - end_count
+                variance = manufacturing_qty - actual_usage
+                actual_usage_value = actual_usage * valuation_rate
+                theoratical_usage_value = manufacturing_qty * valuation_rate
+                variance_value = variance * valuation_rate
+                
+                theoratical_cost += theoratical_usage_value
+                actual_cost += actual_usage_value
+                
+                data_dict["actual_usage_value"] = round(actual_usage_value,4)
+                data_dict["theoratical_usage_value"] = round(theoratical_usage_value,4)
+                data_dict["variance_value"] = round(variance_value,4)
+                data_dict["variance"] = variance
+                data_dict["actual_usage"] = actual_usage
+                data_dict["end_count"] = end_count
                 data_dict["opening"] = opening
-                data_dict["theoratical_cost"] = opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
-                theoratical_cost += opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
+                # data_dict["theoratical_cost"] = "{:.4f}".format(theoratical_cost) 
+                # data_dict["theoratical_cost"] = opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
+                # theoratical_cost += opening + purchase_qty + received_qty - sales_qty - waste_qty - manufacturing_qty - transfer_qty
 
                 data.append(data_dict)
 
@@ -155,14 +176,14 @@ def get_data(filters):
                     ),
                     as_dict=1,debug = True)
 
-        total_sales = net_sales[0].get("total")
+        total_sales = net_sales[0].get("total") if net_sales[0].get("total") > 0 else 1
         data.append({})
         data.append({"item_code": "The Total Net Sales is {0}".format(total_sales)})
         if total_sales is not None:
-            data.append({"item_code": "Theoratical Cost is  {0}".format(theoratical_cost)})
-            data.append({"item_code": "Theoratical Percentage is {0}".format((theoratical_cost/total_sales)*100)})
-            data.append({"item_code": "Actual Cost is {0}%".format(actual_cost)})
-            data.append({"item_code": "Actual Percentage is {0}%".format((actual_cost/total_sales)*100)})
+            data.append({"item_code": "Theoratical Cost is  {0}".format(round(theoratical_cost,4))})
+            data.append({"item_code": "Theoratical Percentage is {0}%".format(round((theoratical_cost/total_sales)*100,2))})
+            data.append({"item_code": "Actual Cost is {0}".format(round(actual_cost,4))})
+            data.append({"item_code": "Actual Percentage is {0}%".format(round((actual_cost/total_sales)*100,2))})
 
 
         return data
@@ -185,13 +206,19 @@ def get_columns():
             "width": 100,
         },
         {
+            "label": _("Valuation Rate"),
+            "fieldname": "valuation_rate",
+            "fieldtype": "data",
+            "width": 100,
+        },
+        {
             "label": _("UOM"),
             "fieldname": "uom",
             "fieldtype": "Data",
             "width": 100,
         },
         {
-            "label": _("Opening"),
+            "label": _("Start Count"),
             "fieldname": "opening",
             "fieldtype": "Data",
             "width": 100,
@@ -202,60 +229,51 @@ def get_columns():
             "fieldtype": "Data",
             "width": 100,
         },
-        {
-            "label": _("POS Sales"),
-            "fieldname": "sales",
-            "fieldtype": "Data",
-            "width": 90,
-        },
-        {
-            "label": _("Transfer Qty"),
-            "fieldname": "transfer",
+		{
+            "label": _("End Count"),
+            "fieldname": "end_count",
             "fieldtype": "Data",
             "width": 100,
         },
-        {
-            "label": _("Received Qty"),
-            "fieldname": "received",
+  		{
+            "label": _("Actual Usage Qty"),
+            "fieldname": "actual_usage",
             "fieldtype": "Data",
             "width": 100,
         },
-        {
-            "label": _("Recipe Used"),
+		{
+            "label": _("Theoratical Usage Qty"),
             "fieldname": "manufacture",
             "fieldtype": "Data",
             "width": 120,
         },
-        {
-            "label": _("Waste"),
-            "fieldname": "waste",
+
+		{
+            "label": _("Variance Qty"),
+            "fieldname": "variance",
             "fieldtype": "Data",
             "width": 120,
         },
-        {
-            "label": _("Theoretical"),
-            "fieldname": "theoratical",
+  		{
+            "label": _("Actual Usage Value"),
+            "fieldname": "actual_usage_value",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+		{
+            "label": _("Theoratical Usage Value"),
+            "fieldname": "theoratical_usage_value",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+  		{
+            "label": _("Variance Value"),
+            "fieldname": "variance_value",
             "fieldtype": "Data",
             "width": 120,
         },
-        {
-            "label": _("Theoretical Cost"),
-            "fieldname": "theoratical_cost",
-            "fieldtype": "Data",
-            "width": 120,
-        },
-        {
-            "label": _("Actual"),
-            "fieldname": "actual",
-            "fieldtype": "Data",
-            "width": 120,
-        },
-        {
-            "label": _("Actual Cost"),
-            "fieldname": "actual_cost",
-            "fieldtype": "Data",
-            "width": 120,
-        },
+
+        
     ]
     return columns
 

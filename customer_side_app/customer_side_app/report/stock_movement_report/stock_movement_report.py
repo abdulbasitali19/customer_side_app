@@ -17,20 +17,21 @@ def get_data(filters):
         to_date = filters.get("to_date")
         from_date = filters.get("from_date")
         warehouse = filters.get("warehouse")
-        item = filters.get("item_name")
+        item = filters.get("item_code")
         item_group = filters.get("item_group")
         conditions = get_conditions(filters)
 
 
-        item_list = frappe.db.sql("""
-            SELECT
-                item_code
-            FROM
-                `tabItem`
-            WHERE
-             1 = 1
-                {0}
-        """.format(conditions),as_dict=True)
+    item_list =frappe.db.sql("""
+            	SELECT 
+                    sri.item_code as item_code
+                FROM 
+                	`tabStock Reconciliation` as sr INNER JOIN  `tabStock Reconciliation Item` AS sri   
+                	on sr.name = sri.parent
+                WHERE sr.docstatus = 1 AND sr.purpose = 'Stock Reconciliation' AND 
+                   sr.posting_date BETWEEN '{0}' AND '{1}' and sri.warehouse = '{2}' {3}
+                   Group BY item_code
+                """.format(from_date,to_date,warehouse,conditions), as_dict=1, debug = True)
 
     if item_list:
         data = []
@@ -43,18 +44,17 @@ def get_data(filters):
                 """SELECT sr.name, sri.current_qty as current_qty, sri.qty as qty
                    FROM `tabStock Reconciliation` as sr INNER JOIN  `tabStock Reconciliation Item` AS sri
                    on sr.name = sri.parent
-                   WHERE sr.docstatus = 1 AND sr.purpose = 'Stock Reconciliation' AND sri.item_code = '{0}' and sri.warehouse = '{1}'""".format(
-                    item,warehouse
+                   WHERE sr.docstatus = 1 AND sr.purpose = 'Stock Reconciliation' AND sri.item_code = '{0}' and sri.warehouse = '{1}'
+                   AND sr.posting_date BETWEEN '{2}' AND '{3}'""".format(
+                    item,warehouse,from_date,to_date
                 ),
                 as_dict=1,
             )
 
             if stock_reconcile:
-                data_dict["item_code"] = item
                 data_dict["item_name"] = item_name
-                data_dict["theoratical"] = stock_reconcile[0].get("current_qty") if stock_reconcile[0].get("current_qty") else 0
-                data_dict["actual"] = stock_reconcile[0].get("qty") if stock_reconcile[0].get("qty")else 0
-
+                data_dict["item_code"] = item
+                
                 uom = frappe.db.sql("""
                     SELECT
                         stock_uom as uom
@@ -69,13 +69,14 @@ def get_data(filters):
 
                 purchase_qty = frappe.db.sql(
                     """SELECT SUM(sit.stock_qty) as purchase_qty
-                       FROM `tabPurchase Invoice` AS pi
-                       INNER JOIN `tabPurchase Invoice Item` AS sit ON pi.name = sit.parent
+                       FROM `tabPurchase Receipt` AS pi
+                       INNER JOIN `tabPurchase Receipt Item` AS sit ON pi.name = sit.parent
                        WHERE sit.item_code = '{0}' and pi.docstatus = 1
                        AND pi.posting_date BETWEEN '{1}' AND '{2}' AND sit.warehouse = '{3}' """.format(item, from_date, to_date, warehouse ),
 					   as_dict = 1
                 )
-                data_dict["purchase"] = purchase_qty[0].get("purchase_qty") if purchase_qty[0].get("purchase_qty") else 0
+                purchase_qty = purchase_qty[0].get("purchase_qty") if purchase_qty[0].get("purchase_qty") else 0
+                data_dict["purchase"] = purchase_qty
 
                 sales_qty = frappe.db.sql(
                     """SELECT SUM(sit.stock_qty) as sales_qty
@@ -88,24 +89,24 @@ def get_data(filters):
                 data_dict["sales"] = sales_qty[0].get("sales_qty") if sales_qty[0].get("sales_qty") else 0
 
                 transfer_qty = frappe.db.sql(
-                    """SELECT SUM(sed.transfer_qty) as transfer_qty
+                    """SELECT SUM(sed.qty) as transfer_qty
                        FROM `tabStock Entry` AS se
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
                        WHERE sed.item_code = '{0}'
                        AND se.stock_entry_type = 'Material Transfer' AND se.docstatus = 1
-                       AND se.posting_date BETWEEN '{1}' AND '{2}' AND sed.t_warehouse = '{3}'""".format(item, from_date, to_date,warehouse),
+                       AND se.posting_date BETWEEN '{1}' AND '{2}' AND sed.s_warehouse = '{3}'""".format(item, from_date, to_date,warehouse),
 					   as_dict = 1
                 )
                 data_dict["transfer"] = transfer_qty[0].get("transfer_qty")if transfer_qty[0].get("transfer_qty") else 0
 
 
                 received_qty = frappe.db.sql(
-                    """SELECT SUM(sed.transfer_qty) as transfer_qty
+                    """SELECT SUM(sed.qty) as transfer_qty
                        FROM `tabStock Entry` AS se
                        INNER JOIN `tabStock Entry Detail` AS sed ON se.name = sed.parent
                        WHERE sed.item_code = '{0}'
                        AND se.stock_entry_type = 'Material Transfer' AND se.docstatus = 1
-                       AND se.posting_date BETWEEN '{1}' AND '{2}' AND sed.s_warehouse = '{3}'""".format(item, from_date, to_date,warehouse),
+                       AND se.posting_date BETWEEN '{1}' AND '{2}' AND sed.t_warehouse = '{3}'""".format(item, from_date, to_date,warehouse),
 					   as_dict = 1
                 )
                 data_dict["received"] = received_qty[0].get("transfer_qty")if received_qty[0].get("transfer_qty") else 0
@@ -119,7 +120,8 @@ def get_data(filters):
                        AND se.posting_date BETWEEN '{1}' AND '{2}' AND sed.s_warehouse = '{3}'""".format(item, from_date, to_date,warehouse),
 					   as_dict = 1
                 )
-                data_dict["manufacture"] = manufacturing_qty[0].get("manu_qty") if manufacturing_qty[0].get("manu_qty") else 0
+                manufacturing_qty = manufacturing_qty[0].get("manu_qty") if manufacturing_qty[0].get("manu_qty") else 0
+                data_dict["manufacture"] = manufacturing_qty
 
                 waste_qty = frappe.db.sql(
                     """SELECT SUM(sed.transfer_qty) as waste_qty
@@ -131,8 +133,16 @@ def get_data(filters):
 					   as_dict = 1
                 )
                 data_dict["waste"] = waste_qty[0].get("waste_qty") if waste_qty[0].get("waste_qty") else 0
-                opening = get_stock_balance(item,warehouse,from_date)
+                opening = get_stock_balance(item,warehouse,from_date,"23:59:59")
+                end_count = get_stock_balance(item,warehouse,to_date,"23:59:59")
+                actual_usage = opening + purchase_qty - end_count
+                variance = manufacturing_qty - actual_usage
                 data_dict["opening"] =  opening
+                data_dict["end_count"]  = end_count
+                data_dict["actual_usage"]  = actual_usage
+                data_dict["variance"] = variance
+                
+                
 
 
                 data.append(data_dict)
@@ -171,32 +181,44 @@ def get_columns():
             "width": 100,
         },
         {
+            "label": _("End Count"),
+            "fieldname": "end_count",
+            "fieldtype": "Data",
+            "width": 100,
+        },
+        {
             "label": _("Purchase"),
             "fieldname": "purchase",
             "fieldtype": "Data",
             "width": 100,
         },
+        # {
+        #     "label": _("POS Sales"),
+        #     "fieldname": "sales",
+        #     "fieldtype": "Data",
+        #     "width": 90,
+        # },
         {
-            "label": _("POS Sales"),
-            "fieldname": "sales",
-            "fieldtype": "Data",
-            "width": 90,
-        },
-        {
-            "label": _("Transfer Qty"),
+            "label": _("Transfer Out"),
             "fieldname": "transfer",
             "fieldtype": "Data",
             "width": 100,
         },
         {
-            "label": _("Received Qty"),
+            "label": _("Transfer In"),
             "fieldname": "received",
             "fieldtype": "Data",
             "width": 100,
         },
         {
-            "label": _("Recipe Used"),
+            "label": _("Theoretical Qty"),
             "fieldname": "manufacture",
+            "fieldtype": "Data",
+            "width": 120,
+        },
+         {
+            "label": _("Actual Qty"),
+            "fieldname": "actual_usage",
             "fieldtype": "Data",
             "width": 120,
         },
@@ -207,17 +229,13 @@ def get_columns():
             "width": 120,
         },
         {
-            "label": _("Theoretical"),
-            "fieldname": "theoratical",
+            "label": _("Variance Qty"),
+            "fieldname": "variance",
             "fieldtype": "Data",
             "width": 120,
         },
-        {
-            "label": _("Actual"),
-            "fieldname": "actual",
-            "fieldtype": "Data",
-            "width": 120,
-        },
+      
+       
     ]
     return columns
 
@@ -225,8 +243,8 @@ def get_columns():
 
 def get_conditions(filters):
     conditions = ""
-    if filters.get("item_name"):
-        conditions += " AND item_code = '{0}'".format(filters.get("item_name"))
+    if filters.get("item_code"):
+        conditions += " AND item_code = '{0}'".format(filters.get("item_code"))
     if filters.get("item_group"):
         conditions += " AND item_group = '{0}'".format(filters.get("item_group"))
     return conditions

@@ -29,7 +29,7 @@ frappe.query_reports["Physical Count Report"] = {
 			"width": "80",
 		},
 		{
-			"fieldname":"item_name",
+			"fieldname":"item_code",
 			"label": __("Item"),
 			"fieldtype": "Link",
 			"options":"Item",

@@ -28,7 +28,7 @@ frappe.query_reports["Stock Movement Report"] = {
 			"width": "80",
 		},
 		{
-			"fieldname":"item_name",
+			"fieldname":"item_code",
 			"label": __("Item"),
 			"fieldtype": "Link",
 			"options":"Item",

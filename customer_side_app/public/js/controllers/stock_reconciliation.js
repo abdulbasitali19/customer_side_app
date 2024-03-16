@@ -97,21 +97,21 @@ frappe.ui.form.on("Stock Reconciliation", {
 
 
 frappe.ui.form.on("Stock Reconciliation Item", {
-
-    uom: function (doc, cdt, cdn) {
+    custom_uom: function (doc, cdt, cdn) {
         var d = locals[cdt][cdn];
-        if (d.uom && d.item_code) {
+        if (d.custom_uom && d.item_code) {
             return frappe.call({
                 method: "erpnext.stock.doctype.stock_entry.stock_entry.get_uom_details",
                 args: {
                     item_code: d.item_code,
-                    uom: d.uom,
-                    qty: d.qty
+                    uom: d.custom_uom,
+                    qty: d.custom_user_qty
                 },
                 callback: function (r) {
                     if (r.message) {
-                        console.log(r.message)
-                        frappe.model.set_value(cdt, cdn, r.message);
+                        r = r.message
+                        frappe.model.set_value(cdt, cdn, "custom_uom_conversion_factor", r.conversion_factor);
+                        frappe.model.set_value(cdt, cdn, "qty", r.transfer_qty);
                     }
                 }
             });
@@ -119,10 +119,11 @@ frappe.ui.form.on("Stock Reconciliation Item", {
     },
 
 
-    qty:function(frm,cdt, cdn){
+    custom_user_qty:function(frm,cdt, cdn){
         var d = locals[cdt][cdn];
-        if (d.qty){
-            frappe.model.set_value(cdt, cdn, "amount", flt(d.qty * d.valuation_rate));
+        if (d.custom_user_qty){
+            frappe.model.set_value(cdt, cdn, "amount", flt(d.custom_user_qty * d.valuation_rate));
+            frappe.model.set_value(cdt, cdn, "qty", d.custom_user_qty * d.custom_uom_conversion_factor);
         }
     }
 
