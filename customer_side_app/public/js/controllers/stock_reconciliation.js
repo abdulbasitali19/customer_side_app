@@ -1,7 +1,7 @@
 frappe.ui.form.on("Stock Reconciliation", {
 
     setup: function (frm) {
-        frm.set_query("uom", "items", function (doc, cdt, cdn) {
+        frm.set_query("custom_uom", "items", function (doc, cdt, cdn) {
           let row = locals[cdt][cdn];
           return {
             query:
@@ -100,7 +100,7 @@ frappe.ui.form.on("Stock Reconciliation Item", {
     custom_uom: function (doc, cdt, cdn) {
         var d = locals[cdt][cdn];
         if (d.custom_uom && d.item_code) {
-            return frappe.call({
+            frappe.call({
                 method: "erpnext.stock.doctype.stock_entry.stock_entry.get_uom_details",
                 args: {
                     item_code: d.item_code,
@@ -109,6 +109,7 @@ frappe.ui.form.on("Stock Reconciliation Item", {
                 },
                 callback: function (r) {
                     if (r.message) {
+                        debugger;
                         r = r.message
                         frappe.model.set_value(cdt, cdn, "custom_uom_conversion_factor", r.conversion_factor);
                         frappe.model.set_value(cdt, cdn, "qty", r.transfer_qty);
