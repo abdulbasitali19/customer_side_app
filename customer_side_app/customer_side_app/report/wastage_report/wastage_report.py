@@ -16,11 +16,11 @@ def get_data(filters):
 	material_issue_data = get_material_issue_data(filters)
 	if material_issue_data:
 		for d in material_issue_data:
-			item_description  = frappe.db.get_value("Item", d.get("item_code"), "description")
+			item_description, uom  = frappe.db.get_value("Item", d.get("item_code"), ["description","stock_uom"])
 			data_dict = {}
 			data_dict["item_code"] = d.get("item_code")
 			data_dict["item_name"] = item_description
-			data_dict["uom"] = d.get("uom")
+			data_dict["uom"] = uom
 			data_dict["warehouse"] = d.get("warehouse")
 			data_dict["qty"] = d.get("qty")
 			data_dict["cost"] = d.get("cost")
@@ -98,12 +98,12 @@ def get_columns():
             "fieldtype": "Data",
             "width": 100,
         },
-		{
-            "label": _("Cost"),
-            "fieldname": "cost",
-            "fieldtype": "Data",
-            "width": 100,
-        },
+		# {
+        #     "label": _("Cost"),
+        #     "fieldname": "cost",
+        #     "fieldtype": "Data",
+        #     "width": 100,
+        # },
 		{
             "label": _("Date"),
             "fieldname": "date",

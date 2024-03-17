@@ -99,7 +99,7 @@ frappe.ui.form.on("Stock Reconciliation", {
 frappe.ui.form.on("Stock Reconciliation Item", {
     custom_uom: function (doc, cdt, cdn) {
         var d = locals[cdt][cdn];
-        if (d.custom_uom && d.item_code) {
+        if (d.custom_uom && d.item_code && d.custom_user_qty) {
             frappe.call({
                 method: "erpnext.stock.doctype.stock_entry.stock_entry.get_uom_details",
                 args: {
@@ -116,6 +116,10 @@ frappe.ui.form.on("Stock Reconciliation Item", {
                     }
                 }
             });
+        }
+        else
+        {
+                frappe.throw("Please Enter the user Qty Field")
         }
     },
 
