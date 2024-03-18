@@ -27,7 +27,10 @@ def get_stock_reconcilation_data(filters):
             sri.quantity_difference as difference,
             sri.warehouse as warehouse,
             sr.posting_date as posting_date,
-            sr.owner as owner
+            sr.owner as owner,
+            sri.current_amount as system_stock_amount,
+            sri.amount as actual_stock_amount,
+            sri.amount_difference as amount_difference
         FROM
             `tabStock Reconciliation` as sr inner join `tabStock Reconciliation Item` as sri on sr.name = sri.parent
         Where
@@ -50,16 +53,16 @@ def get_data(filters):
             # entries_dict['posting_date'] = i.get("posting_date")
             # entries_dict['warehouse'] = i.get("warehouse")
             entries_dict['uom'] = secondary_uom
-            entries_dict['system_stock_value'] = round(i.get("available_qty"),3)
-            entries_dict['actual_stock_value'] = round(i.get("actual_qty"),3)
-            entries_dict['difference_value'] = round(float(i.get("difference")),3)
+            entries_dict['system_stock_value'] = round(i.get("system_stock_amount"),3)
+            entries_dict['actual_stock_value'] = round(i.get("actual_stock_amount"),3)
+            entries_dict['difference_value'] = i.get("amount_difference")
             if unit_of_measure:
                 for uom in unit_of_measure:
                     uom_name = uom.get("uom")
                     if uom_name == secondary_uom:
                         converison_factor = uom.get('conversion_factor') if uom.get('conversion_factor') > 0 else 1
                         entries_dict["actual_stock_qty"] =  round(i.get('actual_qty') / converison_factor,3)
-                        entries_dict["system_stock_qty"] =  round(i.get('available_qty') / converison_factor,3)
+                        entries_dict["system_stock_qty"] =  i.get('available_qty') / converison_factor
                         entries_dict["difference_qty"] =  round(float(i.get('difference')) / converison_factor,3)
                         
             entries_array.append(entries_dict)
@@ -106,19 +109,19 @@ def get_columns():
         {
             "label": _("System Stock Value"),
             "fieldname": "system_stock_value",
-            "fieldtype": "Data",
+            "fieldtype": "Currency",
             "width": 120,
         },
         {
             "label": _("Actual Stock Value"),
             "fieldname": "actual_stock_value",
-            "fieldtype": "Data",
+            "fieldtype": "Currency",
             "width": 120,
         },
         {
             "label": _("Difference Value"),
             "fieldname": "difference_value",
-            "fieldtype": "Data",
+            "fieldtype": "Currency",
             "width": 120,
         },
         
