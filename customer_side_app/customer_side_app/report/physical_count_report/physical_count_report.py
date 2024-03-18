@@ -43,22 +43,25 @@ def get_data(filters):
     if data:
         for i in data:
             entries_dict = {}
+            secondary_uom = frappe.db.get_value("Item", i.get("item_code"), "secondary_unit")
             unit_of_measure = frappe.get_all("UOM Conversion Detail", filters={"parent": i.get("item_code"), "parenttype": "Item"}, fields=["uom", "conversion_factor"],)
+            entries_dict['item_code'] = i.get("item_code")
             entries_dict['item_name'] = i.get("item_name")
-            entries_dict['posting_date'] = i.get("posting_date")
-            entries_dict['uom'] = i.get("uom")
-            entries_dict['warehouse'] = i.get("warehouse")
-            entries_dict['available_qty'] = i.get("available_qty")
-            entries_dict['actual_qty'] = i.get("actual_qty")
-            entries_dict['difference'] = i.get("difference")
+            # entries_dict['posting_date'] = i.get("posting_date")
+            # entries_dict['warehouse'] = i.get("warehouse")
+            entries_dict['uom'] = secondary_uom
+            entries_dict['system_stock_value'] = round(i.get("actual_qty"),3)
+            entries_dict['actual_stock_value'] = round(i.get("available_qty"),3)
+            entries_dict['difference_value'] = round(float(i.get("difference")),3)
             if unit_of_measure:
-                j = 1
                 for uom in unit_of_measure:
                     uom_name = uom.get("uom")
-                    converison_factor = uom.get('conversion_factor') if uom.get('conversion_factor') > 0 else 1
-                    entries_dict[f"available{j}"] = f"{ i.get('available_qty') / converison_factor:.3f} <b>{uom_name}</b>"
-                    entries_dict[f"actual{j}"] = f"{ i.get('actual_qty') / converison_factor:.3f} <b>{uom_name}</b>"
-                    j += 1
+                    if uom_name == secondary_uom:
+                        converison_factor = uom.get('conversion_factor') if uom.get('conversion_factor') > 0 else 1
+                        entries_dict["actual_stock_qty"] =  round(i.get('available_qty') / converison_factor,3)
+                        entries_dict["system_stock_qty"] =  round(i.get('actual_qty') / converison_factor,3)
+                        entries_dict["difference_qty"] =  round(float(i.get('difference')) / converison_factor,3)
+                        
             entries_array.append(entries_dict)
     return entries_array
 
@@ -66,6 +69,14 @@ def get_data(filters):
 def get_columns():
     """return columns"""
     columns = [
+        {
+            "label": _("Item Code"),
+            "fieldname": "item_code",
+            "fieldtype": "Link",
+            "options": "Item",
+            "width": 90,
+        },
+        
         {"label": _("Item Name"), "fieldname": "item_name", "width": 150},
         {
             "label": _("Stock UOM"),
@@ -75,61 +86,42 @@ def get_columns():
             "width": 90,
         },
         {
-            "label": _("Posting Date"),
-            "fieldname": "posting_date",
-            "fieldtype": "Date",
-            "width": 90,
-        },
-        {
-            "label": _("Location"),
-            "fieldname": "warehouse",
-            "fieldtype": "Link",
-            "options": "Warehouse",
-            "width": 120,
-        },
-        {
-            "label": _("Theoratical Qty"),
-            "fieldname": "available1",
+            "label": _("System Stock Qty"),
+            "fieldname": "system_stock_qty",
             "fieldtype": "Data",
             "width": 120,
         },
         {
-            "label": _("Theoratical Qty"),
-            "fieldname": "available2",
+            "label": _("Actual Stock Qty"),
+            "fieldname": "actual_stock_qty",
             "fieldtype": "Data",
             "width": 120,
         },
         {
-            "label": _("Theoratical Qty"),
-            "fieldname": "available3",
+            "label": _("Difference Qty"),
+            "fieldname": "difference_qty",
             "fieldtype": "Data",
             "width": 120,
         },
         {
-            "label": _("Physical Qty"),
-            "fieldname": "actual1",
+            "label": _("System Stock Value"),
+            "fieldname": "system_stock_value",
             "fieldtype": "Data",
             "width": 120,
         },
         {
-            "label": _("Physical Qty"),
-            "fieldname": "actual2",
+            "label": _("Actual Stock Value"),
+            "fieldname": "actual_stock_value",
             "fieldtype": "Data",
             "width": 120,
         },
         {
-            "label": _("Physical Qty"),
-            "fieldname": "actual3",
+            "label": _("Difference Value"),
+            "fieldname": "difference_value",
             "fieldtype": "Data",
             "width": 120,
         },
-        {
-            "label": _("Difference"),
-            "fieldname": "difference",
-            "fieldtype": "Float",
-            "precision":3,
-            "width": 120,
-        },
+        
     ]
 
     return columns
