@@ -50,16 +50,16 @@ def get_data(filters):
             # entries_dict['posting_date'] = i.get("posting_date")
             # entries_dict['warehouse'] = i.get("warehouse")
             entries_dict['uom'] = secondary_uom
-            entries_dict['system_stock_value'] = round(i.get("actual_qty"),3)
-            entries_dict['actual_stock_value'] = round(i.get("available_qty"),3)
+            entries_dict['system_stock_value'] = round(i.get("available_qty"),3)
+            entries_dict['actual_stock_value'] = round(i.get("actual_qty"),3)
             entries_dict['difference_value'] = round(float(i.get("difference")),3)
             if unit_of_measure:
                 for uom in unit_of_measure:
                     uom_name = uom.get("uom")
                     if uom_name == secondary_uom:
                         converison_factor = uom.get('conversion_factor') if uom.get('conversion_factor') > 0 else 1
-                        entries_dict["actual_stock_qty"] =  round(i.get('available_qty') / converison_factor,3)
-                        entries_dict["system_stock_qty"] =  round(i.get('actual_qty') / converison_factor,3)
+                        entries_dict["actual_stock_qty"] =  round(i.get('actual_qty') / converison_factor,3)
+                        entries_dict["system_stock_qty"] =  round(i.get('available_qty') / converison_factor,3)
                         entries_dict["difference_qty"] =  round(float(i.get('difference')) / converison_factor,3)
                         
             entries_array.append(entries_dict)
