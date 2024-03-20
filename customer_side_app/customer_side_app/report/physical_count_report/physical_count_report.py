@@ -50,8 +50,6 @@ def get_data(filters):
             unit_of_measure = frappe.get_all("UOM Conversion Detail", filters={"parent": i.get("item_code"), "parenttype": "Item"}, fields=["uom", "conversion_factor"],)
             entries_dict['item_code'] = i.get("item_code")
             entries_dict['item_name'] = i.get("item_name")
-            # entries_dict['posting_date'] = i.get("posting_date")
-            # entries_dict['warehouse'] = i.get("warehouse")
             entries_dict['uom'] = secondary_uom
             entries_dict['system_stock_value'] = round(i.get("system_stock_amount"),3)
             entries_dict['actual_stock_value'] = round(i.get("actual_stock_amount"),3)
