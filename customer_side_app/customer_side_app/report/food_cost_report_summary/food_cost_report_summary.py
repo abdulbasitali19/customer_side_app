@@ -64,10 +64,12 @@ def get_data(filters):
                     ),
                     as_dict=1, debug=True)
                 
-                net_sales = net_sales[0].get("total") or 1
+                net_sales = net_sales[0].get("total") or 0.0
                 
-                data_dict["item_code"] = item_code
                 data_dict["net_sales"] = net_sales
+                if net_sales == 0:
+                    net_sales = 1
+                data_dict["item_code"] = item_code
                 data_dict["actual_food_cost"] = actual_amount
                 data_dict["actual_food_cost_percent"] = "{0}%".format(round((actual_amount * 100) / net_sales,2))
                 data_dict["theoratical_food_cost"] = current_amount
